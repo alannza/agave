@@ -1264,7 +1264,6 @@ impl Validator {
                     rpc_subscriptions.clone(),
                     confirmed_bank_subscribers,
                     prioritization_fee_cache.clone(),
-                    event_notification_synchronizer.clone(),
                 ));
             let bank_notification_sender_config = Some(BankNotificationSenderConfig {
                 sender: bank_notification_sender,
@@ -2519,7 +2518,6 @@ fn initialize_rpc_transaction_history_services(
         transaction_notifier,
         blockstore.clone(),
         enable_extended_tx_metadata_storage,
-        event_notification_synchronizer,
         exit.clone(),
     ));
 

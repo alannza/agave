@@ -31,7 +31,9 @@ use {
         bank_forks::{BankForks, SetRootError},
         bank_utils,
         commitment::VOTE_THRESHOLD_SIZE,
-        event_notification_synchronizer::EventNotificationSynchronizer,
+        event_notification_synchronizer::{
+            BankNotificationDependencyTracker, EventNotificationSynchronizer,
+        },
         installed_scheduler_pool::BankWithScheduler,
         prioritization_fee_cache::PrioritizationFeeCache,
         runtime_config::RuntimeConfig,
@@ -2213,12 +2215,15 @@ pub fn process_single_slot(
     Ok(())
 }
 
-type EventSequence = u64;
-
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum TransactionStatusMessage {
-    Batch((TransactionStatusBatch, Option<EventSequence>)),
+    Batch(
+        (
+            TransactionStatusBatch,
+            Option<Arc<BankNotificationDependencyTracker>>,
+        ),
+    ),
     Freeze(Slot),
 }
 
@@ -2250,10 +2255,10 @@ impl TransactionStatusSender {
         costs: Vec<Option<u64>>,
         transaction_indexes: Vec<usize>,
     ) {
-        let event_sequence = self
+        let tracker = self
             .event_notification_synchronizer
             .as_ref()
-            .map(|synchronizer| synchronizer.get_new_event_sequence());
+            .map(|manager| manager.get_or_create_bank_tracker(slot));
 
         if let Err(e) = self.sender.send(TransactionStatusMessage::Batch((
             TransactionStatusBatch {
@@ -2265,7 +2270,7 @@ impl TransactionStatusSender {
                 costs,
                 transaction_indexes,
             },
-            event_sequence,
+            tracker,
         ))) {
             trace!(
                 "Slot {} transaction_status send batch failed: {:?}",

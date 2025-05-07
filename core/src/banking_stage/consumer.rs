@@ -1542,7 +1542,6 @@ mod tests {
             None,
             blockstore.clone(),
             false,
-            None, // no event notification synchronizer
             tss_exit.clone(),
         );
 
@@ -1689,7 +1688,6 @@ mod tests {
             None,
             blockstore.clone(),
             false,
-            None, // no event notification synchronizer
             tss_exit.clone(),
         );
 

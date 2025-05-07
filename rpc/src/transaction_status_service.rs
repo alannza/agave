@@ -6,7 +6,6 @@ use {
         blockstore::{Blockstore, BlockstoreError},
         blockstore_processor::{TransactionStatusBatch, TransactionStatusMessage},
     },
-    solana_runtime::event_notification_synchronizer::EventNotificationSynchronizer,
     solana_svm::transaction_commit_result::CommittedTransaction,
     solana_transaction_status::{
         extract_and_fmt_memos, map_inner_instructions, Reward, TransactionStatusMeta,
@@ -41,7 +40,6 @@ impl TransactionStatusService {
         transaction_notifier: Option<TransactionNotifierArc>,
         blockstore: Arc<Blockstore>,
         enable_extended_tx_metadata_storage: bool,
-        event_notification_synchronizer: Option<Arc<EventNotificationSynchronizer>>,
         exit: Arc<AtomicBool>,
     ) -> Self {
         let transaction_status_receiver = Arc::new(write_transaction_status_receiver);
@@ -75,7 +73,6 @@ impl TransactionStatusService {
                         transaction_notifier.clone(),
                         &blockstore,
                         enable_extended_tx_metadata_storage,
-                        event_notification_synchronizer.clone(),
                     ) {
                         Ok(_) => {}
                         Err(err) => {
@@ -102,7 +99,6 @@ impl TransactionStatusService {
         transaction_notifier: Option<TransactionNotifierArc>,
         blockstore: &Blockstore,
         enable_extended_tx_metadata_storage: bool,
-        event_notification_synchronizer: Option<Arc<EventNotificationSynchronizer>>,
     ) -> Result<(), BlockstoreError> {
         match transaction_status_message {
             TransactionStatusMessage::Batch((
@@ -115,7 +111,7 @@ impl TransactionStatusService {
                     costs,
                     transaction_indexes,
                 },
-                event_sequence,
+                tracker,
             )) => {
                 let mut status_and_memos_batch = blockstore.get_write_batch()?;
 
@@ -237,12 +233,8 @@ impl TransactionStatusService {
                     blockstore.write_batch(status_and_memos_batch)?;
                 }
 
-                if let Some(event_notification_synchronizer) =
-                    event_notification_synchronizer.as_ref()
-                {
-                    if let Some(event_sequence) = event_sequence {
-                        event_notification_synchronizer.notify_event_processed(event_sequence);
-                    }
+                if let Some(tracker) = tracker {
+                    tracker.mark_transaction_status_service_notified();
                 }
             }
             TransactionStatusMessage::Freeze(slot) => {
@@ -287,7 +279,10 @@ pub(crate) mod tests {
             parse_account_data::SplTokenAdditionalDataV2, parse_token::token_amount_to_ui_amount_v3,
         },
         solana_ledger::{genesis_utils::create_genesis_config, get_tmp_ledger_path_auto_delete},
-        solana_runtime::bank::{Bank, TransactionBalancesSet},
+        solana_runtime::{
+            bank::{Bank, TransactionBalancesSet},
+            event_notification_synchronizer::EventNotificationSynchronizer,
+        },
         solana_sdk::{
             account_utils::StateMut,
             clock::Slot,
@@ -471,7 +466,6 @@ pub(crate) mod tests {
             Some(test_notifier.clone()),
             blockstore,
             false,
-            None, // No event notification synchronizer
             exit.clone(),
         );
 
@@ -571,7 +565,9 @@ pub(crate) mod tests {
 
         let test_notifier = Arc::new(TestTransactionNotifier::new());
 
-        let event_notification_synchronizer = Arc::new(EventNotificationSynchronizer::default());
+        let event_notification_synchronizer =
+            Arc::new(EventNotificationSynchronizer::default());
+        let tracker = event_notification_synchronizer.get_or_create_bank_tracker(slot);
         let exit = Arc::new(AtomicBool::new(false));
         let transaction_status_service = TransactionStatusService::new(
             transaction_status_receiver,
@@ -580,14 +576,12 @@ pub(crate) mod tests {
             Some(test_notifier.clone()),
             blockstore,
             false,
-            Some(event_notification_synchronizer.clone()),
             exit.clone(),
         );
-        let event_sequence = 345;
         transaction_status_sender
             .send(TransactionStatusMessage::Batch((
                 transaction_status_batch,
-                Some(event_sequence),
+                Some(tracker.clone()),
             )))
             .unwrap();
         transaction_status_service.quiesce_and_join_for_tests(exit);
@@ -627,6 +621,6 @@ pub(crate) mod tests {
             expected_transaction2.message_hash(),
             result2.transaction.message_hash()
         );
-        event_notification_synchronizer.wait_for_event_processed(345);
+        tracker.wait_for_unfinished_dependencies();
     }
 }

@@ -3290,15 +3290,15 @@ impl ReplayStage {
                     );
                 }
                 if let Some(sender) = bank_notification_sender {
-                    let event_sequence = sender
+                    let tracker = sender
                         .event_notification_synchronizer
                         .as_ref()
-                        .map(|s| s.get_new_event_sequence());
+                        .map(|manager| manager.get_or_create_bank_tracker(bank.slot()));
                     sender
                         .sender
                         .send((
                             BankNotification::Frozen(bank.clone_without_scheduler()),
-                            event_sequence,
+                            tracker,
                         ))
                         .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
                 }
@@ -4069,19 +4069,23 @@ impl ReplayStage {
         blockstore.slots_stats.mark_rooted(new_root);
         rpc_subscriptions.notify_roots(rooted_slots);
         if let Some(sender) = bank_notification_sender {
-            let event_sequence = sender
+            let tracker = sender
                 .event_notification_synchronizer
                 .as_ref()
-                .map(|s| s.get_new_event_sequence());
+                .map(|manager| manager.get_or_create_bank_tracker(root_bank.slot()));
             sender
                 .sender
-                .send((BankNotification::NewRootBank(root_bank), event_sequence))
+                .send((BankNotification::NewRootBank(root_bank), tracker))
                 .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
 
             if let Some(new_chain) = rooted_slots_with_parents {
+                // TODO Goes with BankNotification::NewRootedChain arm of waiting code in optimistically_confirmed_bank_tracker... not sure what this is so I don't know how to implement.
                 sender
                     .sender
-                    .send((BankNotification::NewRootedChain(new_chain), event_sequence))
+                    .send((
+                        BankNotification::NewRootedChain(new_chain),
+                        None, /* TODO */
+                    ))
                     .unwrap_or_else(|err| warn!("bank_notification_sender failed: {:?}", err));
             }
         }

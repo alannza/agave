@@ -2033,7 +2033,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         // a closure to reduce code duplications in building expected responses:
@@ -2090,7 +2089,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         let response = receiver.recv();
@@ -2216,7 +2214,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         // The following should panic
@@ -2338,7 +2335,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         // a closure to reduce code duplications in building expected responses:
@@ -2397,7 +2393,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         let response = receiver.recv();
@@ -2837,7 +2832,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         // Now, notify the frozen bank and ensure its notifications are processed
@@ -2856,7 +2850,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
 
         let response = receiver0.recv();
@@ -2915,7 +2908,6 @@ pub(crate) mod tests {
             &mut highest_root_slot,
             &None,
             &PrioritizationFeeCache::default(),
-            &None, // no event synchronization
         );
         let response = receiver1.recv();
         let expected = json!({

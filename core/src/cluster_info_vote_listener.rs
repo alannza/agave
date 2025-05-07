@@ -544,16 +544,13 @@ impl ClusterInfoVoteListener {
                     new_optimistic_confirmed_slots.push((slot, hash));
                     // Notify subscribers about new optimistic confirmation
                     if let Some(sender) = bank_notification_sender {
-                        let event_sequence = sender
+                        let tracker = sender
                             .event_notification_synchronizer
                             .as_ref()
-                            .map(|s| s.get_new_event_sequence());
+                            .map(|manager| manager.get_or_create_bank_tracker(slot));
                         sender
                             .sender
-                            .send((
-                                BankNotification::OptimisticallyConfirmed(slot),
-                                event_sequence,
-                            ))
+                            .send((BankNotification::OptimisticallyConfirmed(slot), tracker))
                             .unwrap_or_else(|err| {
                                 warn!("bank_notification_sender failed: {:?}", err)
                             });
