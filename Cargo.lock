@@ -10289,6 +10289,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-status",
  "tokio",
+ "tokio-tungstenite",
 ]
 
 [[package]]
